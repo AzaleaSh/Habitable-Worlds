@@ -1,0 +1,47 @@
+
+
+import pandas as pd 
+import numpy as np
+
+#We're going to use data from NASA exoplanet archive for every confirmed exoplanet.
+mega_data = pd.read_csv('/workspaces/Habitable-Worlds/PS_2024.06.20_19.26.42.csv', header=0, comment = '#')
+
+
+def habitablecount(data):
+  def check_habitable(row):
+    sigma = 3.31E-12
+    T_1 = 273
+    T_2 = 373
+    r_1 = (((abs(row['st_lum'])/(4*np.pi*sigma*T_1**4))**(1/2)))
+    r_2 = (((abs(row['st_lum'])/(4*np.pi*sigma*T_2**4))**(1/2)))
+    return row['pl_orbsmax'] >= (r_1 - .1) and row['pl_orbsmax'] <= (r_2 +.1)
+
+  data['habitable'] = data.apply(check_habitable, axis=1)
+
+def transit_calculation(data):
+  data['t_p'] = data['st_rad'] * 0.00465047/(data['pl_orbsmax'] * (1 - (data['pl_orbeccen']**2)))
+  data['t_d'] = (data['pl_rade'] * 4.26352e-5 /(data['st_rad']* 0.00465047))**2
+  def print_transit(row):
+    print(f'For this star, the transit probability is {row.name + 1} with a transit density of {row["t_d"]} AU.')
+  
+  data.apply(print_transit, axis=1)
+
+def shift_in_velocity(data):
+  G = 6.6738E-11
+  data['K'] = np.sqrt(G/(data['pl_orbsmax']*(1-(data['pl_orbeccen'] ** 2)))) * data['pl_masse'] * np.sin(90)/(data['st_mass'] ** .5)
+  def print_shift(row):
+    print(f'For habital planet {(row.name +1)}, the shift in velocity is {row["K"]}.')
+
+  data.apply(print_shift, axis = 1)
+  
+#Running the function to pull only habitable exoplanets. This is done by finding the temperature given by their star.
+habitablecount(mega_data)
+
+habitable_rows = (mega_data[mega_data['habitable'] == True]).reset_index(drop=True)
+print(f'There are {len(habitable_rows)} habitable exoplanets.')
+
+#Using those exoplanets, we're now going to see the transit probability.
+transit_calculation(habitable_rows)
+
+#Again, with those exoplanets, we'll find their star's shift in velocity due to the gravitational pull of the exoplanets.
+shift_in_velocity(habitable_rows)
